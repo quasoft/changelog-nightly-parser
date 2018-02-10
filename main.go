@@ -24,16 +24,25 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
+// TrendingRepos is the structure used for marshaling the trending repositories to JSON.
+// The three fields represent the three categories on Changelog's Nightly page:
+// - First - repositories featured for the first time in the Changelog
+// - New - new open sourced repositories
+// - Repeaters - trending repos that have been featured before
 type TrendingRepos struct {
 	First     []string `json:"FirstTimers"`
 	New       []string `json:"TopNew"`
 	Repeaters []string `json:"RepeatPerformers"`
 }
 
+// The Downloader interface represent a type that can perform GET HTTP requests,
+// like http.Client or StubDownloader.
 type Downloader interface {
 	Get(string) (*http.Response, error)
 }
 
+// The Uploader interface represent a type that can perform PUT HTTP requests,
+// like http.Client or StubDownloader.
 type Uploader interface {
 	Do(*http.Request) (*http.Response, error)
 }
