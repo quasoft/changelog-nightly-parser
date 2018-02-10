@@ -1,4 +1,7 @@
 # changelog-nightly-parser
+
+[![GoDoc](https://godoc.org/github.com/quasoft/changelog-nightly-parser?status.svg)](https://godoc.org/github.com/quasoft/changelog-nightly-parser) [![Build Status](https://travis-ci.org/quasoft/changelog-nightly-parser.png?branch=master)](https://travis-ci.org/quasoft/changelog-nightly-parser) [![Coverage Status](https://coveralls.io/repos/github/quasoft/changelog-nightly-parser/badge.svg?branch=master)](https://coveralls.io/github/quasoft/changelog-nightly-parser?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/quasoft/changelog-nightly-parser)](https://goreportcard.com/report/github.com/quasoft/changelog-nightly-parser)
+
 A lambda function that parses the [Changelog Nightly](http://nightly.changelog.com/) page for the last night (`http://nightly.changelog.com/YYYY/MM/DD`) and uploads to GitHub the list of trending repositories found (as a JSON file).
 
 # How to use
