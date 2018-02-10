@@ -111,12 +111,17 @@ func uploadToGithub(body []byte, path string, t time.Time) error {
 	u := fmt.Sprintf("https://api.github.com/repos/%s/%s/contents/%s", owner, repo, path)
 
 	params := struct {
-		Message string `json:"message"`
-		Content string `json:"content"`
-	}{
-		"Uploading trending repos for " + t.Format("2006-01-02"),
-		base64.StdEncoding.EncodeToString(body),
-	}
+		Message  string `json:"message"`
+		Content  string `json:"content"`
+		Commiter struct {
+			Name  string `json:"name"`
+			Email string `json:"email"`
+		} `json:"committer"`
+	}{}
+	params.Message = "Uploading trending repos for " + t.Format("2006-01-02")
+	params.Content = base64.StdEncoding.EncodeToString(body)
+	params.Commiter.Name = "Bot"
+	params.Commiter.Email = "bot@example.com"
 
 	j, err := json.MarshalIndent(params, "", "    ")
 	if err != nil {

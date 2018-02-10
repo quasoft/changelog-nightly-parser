@@ -376,6 +376,24 @@ func TestHandler_OK(t *testing.T) {
 		t.Errorf("The PUT body has no 'content' field, body: %s", got)
 	}
 
+	// Make sure the body contains a 'committer' field
+	want = "committer"
+	if !strings.Contains(got, want) {
+		t.Errorf("The PUT body has no 'committer' field, body: %s", got)
+	}
+
+	// Make sure the body contains a 'committer/name' field
+	want = "name"
+	if !strings.Contains(got, want) {
+		t.Errorf("The PUT body has no 'name' field, body: %s", got)
+	}
+
+	// Make sure the body contains a 'committer/email' field
+	want = "email"
+	if !strings.Contains(got, want) {
+		t.Errorf("The PUT body has no 'email' field, body: %s", got)
+	}
+
 	// Decode 'content' field from base64
 	params := struct {
 		Content string `json:"content"`
