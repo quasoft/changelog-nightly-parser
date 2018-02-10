@@ -1,8 +1,10 @@
 language: go
 sudo: false
 go:
-  - 1.9
+  - tip
 before_install:
   - go get github.com/mattn/goveralls
+  - go get github.com/antchfx/htmlquery
+  - go get github.com/aws/aws-lambda-go/lambda
 script:
   - $GOPATH/bin/goveralls -service=travis-ci
