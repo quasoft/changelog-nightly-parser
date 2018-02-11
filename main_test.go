@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -235,22 +236,26 @@ const (
 // that creates an artificial response with status code 200 and content
 // equal to SampleNightlyBody
 type StubDownloader struct {
-	body *bytes.Buffer
+	body               *bytes.Buffer
+	statusCodeToReturn int
+	errorToReturn      error
 }
 
 func NewStubDownloader() *StubDownloader {
 	return &StubDownloader{
-		body: bytes.NewBufferString(SampleNightlyBody),
+		body:               bytes.NewBufferString(SampleNightlyBody),
+		statusCodeToReturn: http.StatusOK,
+		errorToReturn:      nil,
 	}
 }
 
 func (s *StubDownloader) Get(url string) (*http.Response, error) {
 	return &http.Response{
-		Status:     strconv.Itoa(http.StatusOK),
-		StatusCode: http.StatusOK,
+		Status:     strconv.Itoa(s.statusCodeToReturn),
+		StatusCode: s.statusCodeToReturn,
 		Body:       ioutil.NopCloser(s.body),
 		Header:     http.Header{},
-	}, nil
+	}, s.errorToReturn
 }
 
 // StubUploader is a stub implementation of the Downloader interface,
@@ -259,12 +264,14 @@ func (s *StubDownloader) Get(url string) (*http.Response, error) {
 type StubUploader struct {
 	body               *bytes.Buffer
 	statusCodeToReturn int
+	errorToReturn      error
 }
 
 func NewStubUploader() *StubUploader {
 	return &StubUploader{
-		bytes.NewBufferString(""),
-		http.StatusCreated,
+		body:               bytes.NewBufferString(""),
+		statusCodeToReturn: http.StatusCreated,
+		errorToReturn:      nil,
 	}
 }
 
@@ -276,7 +283,7 @@ func (s *StubUploader) Do(r *http.Request) (*http.Response, error) {
 		StatusCode: s.statusCodeToReturn,
 		Body:       ioutil.NopCloser(strings.NewReader("")),
 		Header:     http.Header{},
-	}, nil
+	}, s.errorToReturn
 }
 
 func TestParseNightlyPage(t *testing.T) {
@@ -328,12 +335,45 @@ func TestParseNightlyPage(t *testing.T) {
 func TestHandler_NoEnvVariables(t *testing.T) {
 	downloader = NewStubDownloader()
 	uploader = NewStubUploader()
-	uploader.(*StubUploader).statusCodeToReturn = http.StatusBadRequest
 
 	// Execute lambda function
+	os.Setenv("GITHUB_OWNER", "")
+	os.Setenv("GITHUB_REPOSITORY", "trending-daily")
+	os.Setenv("GITHUB_TOKEN", "123")
 	err := Handler()
 	if err == nil {
-		t.Fatalf("Should have returned an error when no environment variables are set.")
+		t.Fatalf("Should have returned an error when GITHUB_OWNER environment variable is not set.")
+	}
+
+	os.Setenv("GITHUB_OWNER", "user")
+	os.Setenv("GITHUB_REPOSITORY", "")
+	os.Setenv("GITHUB_TOKEN", "123")
+	err = Handler()
+	if err == nil {
+		t.Fatalf("Should have returned an error when GITHUB_REPOSITORY environment variable is not set.")
+	}
+
+	os.Setenv("GITHUB_OWNER", "user")
+	os.Setenv("GITHUB_REPOSITORY", "trending-daily")
+	os.Setenv("GITHUB_TOKEN", "")
+	err = Handler()
+	if err == nil {
+		t.Fatalf("Should have returned an error when GITHUB_TOKEN environment variable is not set.")
+	}
+}
+
+func TestHandler_DownloadFail(t *testing.T) {
+	os.Setenv("GITHUB_TOKEN", "123")
+	os.Setenv("GITHUB_OWNER", "user")
+	os.Setenv("GITHUB_REPOSITORY", "trending-daily")
+
+	uploader = NewStubUploader()
+
+	downloader = NewStubDownloader()
+	downloader.(*StubDownloader).errorToReturn = fmt.Errorf("unexpected error")
+	err := Handler()
+	if err == nil {
+		t.Fatalf("Should have returned an error when download call fails.")
 	}
 }
 
@@ -343,13 +383,19 @@ func TestHandler_UploadFail(t *testing.T) {
 	os.Setenv("GITHUB_REPOSITORY", "trending-daily")
 
 	downloader = NewStubDownloader()
-	uploader = NewStubUploader()
-	uploader.(*StubUploader).statusCodeToReturn = http.StatusBadRequest
 
-	// Execute lambda function
+	uploader = NewStubUploader()
+	uploader.(*StubUploader).errorToReturn = fmt.Errorf("unexpected error")
 	err := Handler()
 	if err == nil {
-		t.Fatalf("Should have returned an error when upload fails.")
+		t.Fatalf("Should have returned an error when upload call fails.")
+	}
+
+	uploader = NewStubUploader()
+	uploader.(*StubUploader).statusCodeToReturn = http.StatusBadRequest
+	err = Handler()
+	if err == nil {
+		t.Fatalf("Should have returned an error when upload request replies with an error.")
 	}
 }
 
