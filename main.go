@@ -18,11 +18,22 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/antchfx/htmlquery"
 	"github.com/aws/aws-lambda-go/lambda"
 )
+
+// Repository contains fields for the most relevant information available for each repository.
+type Repository struct {
+	Name        string `json:"Name"`
+	URL         string `json:"URL"`
+	Description string `json:"Description"`
+	Stars       int    `json:"Stars"`
+	Language    string `json:"Language"`
+}
 
 // TrendingRepos is the structure used for marshaling the trending repositories to JSON.
 // The three fields represent the three categories on Changelog's Nightly page:
@@ -30,9 +41,9 @@ import (
 // - New - new open sourced repositories
 // - Repeaters - trending repos that have been featured before
 type TrendingRepos struct {
-	First     []string `json:"FirstTimers"`
-	New       []string `json:"TopNew"`
-	Repeaters []string `json:"RepeatPerformers"`
+	First     []Repository `json:"FirstTimers"`
+	New       []Repository `json:"TopNew"`
+	Repeaters []Repository `json:"RepeatPerformers"`
 }
 
 // The Downloader interface represent a type that can perform GET HTTP requests,
@@ -78,18 +89,54 @@ func parseNightlyPage(body io.Reader) (*TrendingRepos, error) {
 
 	categoryClasses := []string{"top-all-firsts", "top-new", "top-all-repeats"}
 
-	m := make(map[string][]string)
-	for _, class := range categoryClasses {
-		xpath := fmt.Sprintf(`//table[@id="%s"]//tr[contains(@class, 'about')]//a/@href`, class)
-		for _, n := range htmlquery.Find(doc, xpath) {
-			href := htmlquery.SelectAttr(n, "href")
-			m[class] = append(m[class], href)
+	categoryMap := make(map[string][]Repository)
+	for _, cat := range categoryClasses {
+		categoryFilter := fmt.Sprintf(`//table[@id="%s"]//div[contains(@class, 'repository')]`, cat)
+		for _, n := range htmlquery.Find(doc, categoryFilter) {
+			a := htmlquery.FindOne(n, `//tr[contains(@class, 'about')]//a`)
+			if a == nil {
+				// Ignore if URL or repository name cannot be determined
+				continue
+			}
+			href := htmlquery.SelectAttr(a, "href")
+			name := htmlquery.InnerText(a)
+			desc := ""
+			stars := 0
+			lang := ""
+
+			p := htmlquery.FindOne(n, `//tr[contains(@class, 'about')]//p`)
+			if p != nil {
+				desc = strings.TrimSpace(htmlquery.InnerText(p))
+			}
+
+			s := htmlquery.FindOne(n, `//span[contains(@title, 'Stars')]`)
+			if s != nil {
+				starsText := strings.TrimSpace(htmlquery.InnerText(s))
+				sn, err := strconv.Atoi(starsText)
+				if err == nil {
+					stars = sn
+				}
+			}
+
+			l := htmlquery.FindOne(n, `//span[contains(@title, 'Language')]//a`)
+			if l != nil {
+				lang = strings.TrimSpace(htmlquery.InnerText(l))
+			}
+
+			repo := Repository{
+				Name:        name,
+				URL:         href,
+				Description: desc,
+				Stars:       stars,
+				Language:    lang,
+			}
+			categoryMap[cat] = append(categoryMap[cat], repo)
 		}
 	}
 
-	trending.First = m[categoryClasses[0]]
-	trending.New = m[categoryClasses[1]]
-	trending.Repeaters = m[categoryClasses[2]]
+	trending.First = categoryMap["top-all-firsts"]
+	trending.New = categoryMap["top-new"]
+	trending.Repeaters = categoryMap["top-all-repeats"]
 
 	totalCount := len(trending.First) + len(trending.New) + len(trending.Repeaters)
 

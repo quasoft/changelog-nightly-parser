@@ -219,8 +219,12 @@ const (
   </tr>
 </table>
 
-                    </div>
-                  
+										</div>
+
+										<div class="repository ">
+										Should be ignored
+										</div>
+
                   </div>
                 </td>
               </tr>
@@ -293,42 +297,60 @@ func TestParseNightlyPage(t *testing.T) {
 		t.Fatalf("failed parsing on HTML in expected format. error: %v", err)
 	}
 
-	got := len(trending.First)
-	want := 2
-	if got != want {
-		t.Errorf("Found %v first timers, want %v", got, want)
+	gotLen := len(trending.First)
+	wantLen := 2
+	if gotLen != wantLen {
+		t.Fatalf("Found %v first timers, want %v", gotLen, wantLen)
 	}
-	gotURL := trending.First[0]
+
+	got := trending.First[0]
 	wantURL := "https://github.com/user1/repo1"
-	if gotURL != wantURL {
-		t.Errorf("trending.First[0] = %v, want %v", gotURL, wantURL)
+	if got.URL != wantURL {
+		t.Errorf("trending.First[0].URL = %v, want %v", got.URL, wantURL)
 	}
-	gotURL = trending.First[1]
+	wantName := "user1/repo1"
+	if got.Name != wantName {
+		t.Errorf("trending.First[0].Name = %v, want %q", got.Name, wantName)
+	}
+	wantDesc := "A non existing C library."
+	if got.Description != wantDesc {
+		t.Errorf("trending.First[0].Description = %v, want %q", got.Description, wantDesc)
+	}
+	wantStars := 168
+	if got.Stars != wantStars {
+		t.Errorf("trending.First[0].Stars = %v, want %v", got.Stars, wantStars)
+	}
+	wantLang := "C"
+	if got.Language != wantLang {
+		t.Errorf("trending.First[0].Language = %v, want %q", got.Language, wantLang)
+	}
+
+	got = trending.First[1]
 	wantURL = "https://github.com/user2/repo2"
-	if gotURL != wantURL {
-		t.Errorf("trending.First[1] = %v, want %v", gotURL, wantURL)
+	if got.URL != wantURL {
+		t.Errorf("trending.First[1].URL = %v, want %v", got.URL, wantURL)
 	}
 
-	got = len(trending.New)
-	want = 1
-	if got != want {
-		t.Errorf("Found %v new repos, want %v", got, want)
+	gotLen = len(trending.New)
+	wantLen = 1
+	if gotLen != wantLen {
+		t.Errorf("Found %v new repos, want %v", gotLen, gotLen)
 	}
-	gotURL = trending.New[0]
+	got = trending.New[0]
 	wantURL = "https://github.com/user3/repo3"
-	if gotURL != wantURL {
-		t.Errorf("trending.New[0] = %v, want %v", gotURL, wantURL)
+	if got.URL != wantURL {
+		t.Errorf("trending.New[0].URL = %v, want %v", got.URL, wantURL)
 	}
 
-	got = len(trending.Repeaters)
-	want = 1
-	if got != want {
-		t.Errorf("Found %v repeat performers, want %v", got, want)
+	gotLen = len(trending.Repeaters)
+	gotLen = 1
+	if gotLen != gotLen {
+		t.Errorf("Found %v repeat performers, want %v", gotLen, gotLen)
 	}
-	gotURL = trending.Repeaters[0]
+	got = trending.Repeaters[0]
 	wantURL = "https://github.com/user4/repo4"
-	if gotURL != wantURL {
-		t.Errorf("trending.Repeaters[0] = %v, want %v", gotURL, wantURL)
+	if got.URL != wantURL {
+		t.Errorf("trending.Repeaters[0].URL = %v, want %v", got.URL, wantURL)
 	}
 }
 
