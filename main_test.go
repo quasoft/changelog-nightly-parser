@@ -264,31 +264,33 @@ func NewStubDownloader() *StubDownloader {
 }
 
 func (s *StubDownloader) Get(url string) (*http.Response, error) {
-	if s.body == nil {
-		s.body = bytes.NewBufferString(SampleNightlyBody)
+	body := s.body
+	if body == nil {
+		body = bytes.NewBufferString(SampleNightlyBody)
 	}
 
 	return &http.Response{
 		Status:     strconv.Itoa(s.statusCodeToReturn),
 		StatusCode: s.statusCodeToReturn,
-		Body:       ioutil.NopCloser(s.body),
+		Body:       ioutil.NopCloser(body),
 		Header:     http.Header{},
 	}, s.errorToReturn
 }
 
 func (s *StubDownloader) Do(r *http.Request) (*http.Response, error) {
-	if s.body == nil {
-		if strings.Contains(r.RequestURI, "readme") {
-			s.body = bytes.NewBufferString(SampleReadmeHTML)
+	body := s.body
+	if body == nil {
+		if strings.Contains(r.URL.Path, "readme") {
+			body = bytes.NewBufferString(SampleReadmeHTML)
 		} else {
-			s.body = bytes.NewBufferString(SampleNightlyBody)
+			body = bytes.NewBufferString(SampleNightlyBody)
 		}
 	}
 
 	return &http.Response{
 		Status:     strconv.Itoa(s.statusCodeToReturn),
 		StatusCode: s.statusCodeToReturn,
-		Body:       ioutil.NopCloser(s.body),
+		Body:       ioutil.NopCloser(body),
 		Header:     http.Header{},
 	}, s.errorToReturn
 }
@@ -445,6 +447,11 @@ func TestHandler_OK(t *testing.T) {
 	}
 	want = "https://github.com/user1/repo1"
 	if !strings.Contains(string(content), want) {
-		t.Errorf("The file uploaded does not contain URL '%s', file: %s", got, want)
+		t.Errorf("The file uploaded does not contain URL '%s', file: %s", want, content)
+	}
+	// Make sure the 'content' field contains the expected screenshot
+	want = "images/screenshot.jpg"
+	if !strings.Contains(string(content), want) {
+		t.Errorf("The file uploaded does not contain the expected screenshot URL: '%s', file: %s", want, content)
 	}
 }
