@@ -18,38 +18,16 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
-	"strings"
 	"time"
 
-	"github.com/antchfx/htmlquery"
 	"github.com/aws/aws-lambda-go/lambda"
 )
-
-// Repository contains fields for the most relevant information available for each repository.
-type Repository struct {
-	Name        string `json:"Name"`
-	URL         string `json:"URL"`
-	Description string `json:"Description"`
-	Stars       int    `json:"Stars"`
-	Language    string `json:"Language"`
-}
-
-// TrendingRepos is the structure used for marshaling the trending repositories to JSON.
-// The three fields represent the three categories on Changelog's Nightly page:
-// - First - repositories featured for the first time in the Changelog
-// - New - new open sourced repositories
-// - Repeaters - trending repos that have been featured before
-type TrendingRepos struct {
-	First     []Repository `json:"FirstTimers"`
-	New       []Repository `json:"TopNew"`
-	Repeaters []Repository `json:"RepeatPerformers"`
-}
 
 // The Downloader interface represent a type that can perform GET HTTP requests,
 // like http.Client or StubDownloader.
 type Downloader interface {
 	Get(string) (*http.Response, error)
+	Do(*http.Request) (*http.Response, error)
 }
 
 // The Uploader interface represent a type that can perform PUT HTTP requests,
@@ -72,77 +50,6 @@ func download(t time.Time) (io.ReadCloser, error) {
 		return nil, err
 	}
 	return resp.Body, nil
-}
-
-// parseNightlyPage extracts all repository links from the ChangeLog's nightly page
-// (http://nightly.changelog.com/YYYY/MM/DD/) in all three categories:
-// - Top Starred Repositories – First Timers
-// - Top New Repositories
-// - Top Starred Repositories – Repeat Performers
-func parseNightlyPage(body io.Reader) (*TrendingRepos, error) {
-	trending := TrendingRepos{}
-
-	doc, err := htmlquery.Parse(body)
-	if err != nil {
-		return nil, err
-	}
-
-	categoryClasses := []string{"top-all-firsts", "top-new", "top-all-repeats"}
-
-	categoryMap := make(map[string][]Repository)
-	for _, cat := range categoryClasses {
-		categoryFilter := fmt.Sprintf(`//table[@id="%s"]//div[contains(@class, 'repository')]`, cat)
-		for _, n := range htmlquery.Find(doc, categoryFilter) {
-			a := htmlquery.FindOne(n, `//tr[contains(@class, 'about')]//a`)
-			if a == nil {
-				// Ignore if URL or repository name cannot be determined
-				continue
-			}
-			href := htmlquery.SelectAttr(a, "href")
-			name := htmlquery.InnerText(a)
-			desc := ""
-			stars := 0
-			lang := ""
-
-			p := htmlquery.FindOne(n, `//tr[contains(@class, 'about')]//p`)
-			if p != nil {
-				desc = strings.TrimSpace(htmlquery.InnerText(p))
-			}
-
-			s := htmlquery.FindOne(n, `//span[contains(@title, 'Stars')]`)
-			if s != nil {
-				starsText := strings.TrimSpace(htmlquery.InnerText(s))
-				sn, err := strconv.Atoi(starsText)
-				if err == nil {
-					stars = sn
-				}
-			}
-
-			l := htmlquery.FindOne(n, `//span[contains(@title, 'Language')]//a`)
-			if l != nil {
-				lang = strings.TrimSpace(htmlquery.InnerText(l))
-			}
-
-			repo := Repository{
-				Name:        name,
-				URL:         href,
-				Description: desc,
-				Stars:       stars,
-				Language:    lang,
-			}
-			categoryMap[cat] = append(categoryMap[cat], repo)
-		}
-	}
-
-	trending.First = categoryMap["top-all-firsts"]
-	trending.New = categoryMap["top-new"]
-	trending.Repeaters = categoryMap["top-all-repeats"]
-
-	totalCount := len(trending.First) + len(trending.New) + len(trending.Repeaters)
-
-	log.Printf("Found %d repositories", totalCount)
-
-	return &trending, nil
 }
 
 func uploadToGithub(body []byte, path string, t time.Time) error {
@@ -227,13 +134,16 @@ func Handler() error {
 		return err
 	}
 
-	// 3. Build a JSON file with the links
+	// 3. Detect screenshots and populate the field in Repository structure
+	trending.populateScreenshots()
+
+	// 4. Build a JSON file with the links
 	j, err := json.Marshal(trending)
 	if err != nil {
 		return err
 	}
 
-	// 4. Upload the file
+	// 5. Upload the file
 	todaysFileName := yesterday.Format("2006-01-02.json")
 	err = uploadToGithub(j, todaysFileName, yesterday)
 	if err != nil {
