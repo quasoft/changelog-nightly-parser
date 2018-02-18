@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -53,7 +54,7 @@ func (r *Repository) rawImageURL(branch string, relativePath string) string {
 // of the default/main readme file in the repository.
 // Parses the HTML and returns a pointer to the root html.Node of the document.
 func (r *Repository) getReadmeHTML() (*html.Node, error) {
-	req, err := http.NewRequest("GET", r.URL, nil)
+	req, err := http.NewRequest("GET", r.readmeURL(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -61,6 +62,7 @@ func (r *Repository) getReadmeHTML() (*html.Node, error) {
 	req.Header.Set("Accept", "application/vnd.github.v3.html")
 	resp, err := downloader.Do(req)
 	if err != nil {
+		log.Printf("GET request for readme HTML failed: %v", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -80,12 +82,14 @@ func (r *Repository) populateScreenshot() error {
 	// Download the default readme file
 	root, err := r.getReadmeHTML()
 	if err != nil {
+		log.Printf("Could not get repository readme file, error: %v", err)
 		return err
 	}
 
 	// Find a screenshot in the readme file
 	absURL := screenshotFromHTML(root)
 	if absURL == "" {
+		log.Printf("No screenshot detected for %s", r.URL)
 		return fmt.Errorf("No screenshot detected")
 	}
 
@@ -95,6 +99,7 @@ func (r *Repository) populateScreenshot() error {
 		absURL = r.rawImageURL("master", absURL)
 	}
 	r.Screenshot = absURL
+	log.Printf("Screenshot chosen for %s: %s", r.URL, r.Screenshot)
 
 	return nil
 }
@@ -102,10 +107,20 @@ func (r *Repository) populateScreenshot() error {
 // populateScreenshots() executes populateScreenshot() on the repositories in all three
 // categories inside TrendingRepos.
 func (tr *TrendingRepos) populateScreenshots() {
-	allRepos := append(tr.First, tr.New...)
-	allRepos = append(allRepos, tr.Repeaters...)
+	log.Print("Populating screenshots")
 
-	for _, r := range allRepos {
+	for i, r := range tr.First {
 		r.populateScreenshot()
+		tr.First[i] = r
+	}
+
+	for i, r := range tr.New {
+		r.populateScreenshot()
+		tr.New[i] = r
+	}
+
+	for i, r := range tr.Repeaters {
+		r.populateScreenshot()
+		tr.Repeaters[i] = r
 	}
 }
