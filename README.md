@@ -13,13 +13,13 @@ Define the following environment variables in configuration of AWS Lambda:
 
 First build the application as linux executable:
 
-    GOOS=linux GOARCH=amd64 go build -o main main.go
+    GOOS=linux GOARCH=amd64 go build -o main
     zip main.zip main
 
 or
 
 
-    GOOS=linux GOARCH=amd64 go build -o main main.go
+    GOOS=linux GOARCH=amd64 go build -o main
     build-lambda-zip.exe -o main.zip main
 
 if using Windows as build environment.
