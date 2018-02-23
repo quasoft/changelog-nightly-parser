@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/antchfx/htmlquery"
 	"golang.org/x/net/html"
@@ -75,22 +76,21 @@ func (r *Repository) getReadmeHTML() (*html.Node, error) {
 	return root, nil
 }
 
-// populateScreenshot() downloads the default readme of the repository, finds the
-// first image that appears to be a screenshot and populates the Screenshot field
-// with the absolute URL to that image.
-func (r *Repository) populateScreenshot() error {
+// findScreenshot() downloads the default readme of the repository and finds the first
+// image that appears to be a screenshot and returns the absolute URL to that image.
+func (r *Repository) findScreenshot() (string, error) {
 	// Download the default readme file
 	root, err := r.getReadmeHTML()
 	if err != nil {
 		log.Printf("Could not get repository readme file, error: %v", err)
-		return err
+		return "", err
 	}
 
 	// Find a screenshot in the readme file
 	absURL := screenshotFromHTML(root)
 	if absURL == "" {
 		log.Printf("No screenshot detected for %s", r.URL)
-		return fmt.Errorf("No screenshot detected")
+		return "", fmt.Errorf("No screenshot detected")
 	}
 
 	if !strings.HasPrefix(absURL, strings.ToLower("http")) {
@@ -98,29 +98,36 @@ func (r *Repository) populateScreenshot() error {
 		// TODO: Don't assume the branch is "master", get the branch name from Github API
 		absURL = r.rawImageURL("master", absURL)
 	}
-	r.Screenshot = absURL
-	log.Printf("Screenshot chosen for %s: %s", r.URL, r.Screenshot)
+	log.Printf("Screenshot chosen for %s: %s", r.URL, absURL)
 
-	return nil
+	return absURL, nil
 }
 
 // populateScreenshots() executes populateScreenshot() on the repositories in all three
 // categories inside TrendingRepos.
 func (tr *TrendingRepos) populateScreenshots() {
-	log.Print("Populating screenshots")
+	log.Print("Populating screenshots concurrently")
 
-	for i, r := range tr.First {
-		r.populateScreenshot()
-		tr.First[i] = r
+	var wg sync.WaitGroup
+	limit := make(chan struct{}, 10)
+
+	all := [][]Repository{tr.First, tr.New, tr.Repeaters}
+	for cat := range all {
+		for i := range all[cat] {
+			r := &all[cat][i]
+
+			limit <- struct{}{}
+			wg.Add(1)
+			go func() {
+				screenshot, err := r.findScreenshot()
+				if err == nil {
+					r.Screenshot = screenshot
+				}
+				<-limit
+				wg.Done()
+			}()
+		}
 	}
 
-	for i, r := range tr.New {
-		r.populateScreenshot()
-		tr.New[i] = r
-	}
-
-	for i, r := range tr.Repeaters {
-		r.populateScreenshot()
-		tr.Repeaters[i] = r
-	}
+	wg.Wait()
 }

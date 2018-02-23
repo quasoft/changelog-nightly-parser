@@ -62,7 +62,7 @@ func TestRepository_rawImageURL(t *testing.T) {
 	}
 }
 
-func TestRepository_populateScreenshot(t *testing.T) {
+func TestRepository_findScreenshot(t *testing.T) {
 	downloader = NewStubDownloader()
 
 	tests := []struct {
@@ -98,11 +98,11 @@ func TestRepository_populateScreenshot(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			downloader.(*StubDownloader).errorToReturn = tt.httpError
 			downloader.(*StubDownloader).body = bytes.NewBufferString(tt.readmeHTML)
-			err := tt.r.populateScreenshot()
+			screenshot, err := tt.r.findScreenshot()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Repository.populateScreenshot() error = %v, wantErr %v", err, tt.wantErr)
-			} else if tt.r.Screenshot != tt.wantScreenshot {
-				t.Errorf("After populateScreenshot(), Repository.Screenshot = %v, want %v", tt.r.Screenshot, tt.wantScreenshot)
+			} else if screenshot != tt.wantScreenshot {
+				t.Errorf("Repository.findScreenshot() = %v, want %v", screenshot, tt.wantScreenshot)
 			}
 		})
 	}
