@@ -27,7 +27,7 @@ func screenshotFromImages(images []*html.Node) string {
 		}
 
 		outerHTML = strings.ToLower(outerHTML)
-		if isBadge(outerHTML) || isIcon(outerHTML) {
+		if isBadge(outerHTML) || isIcon(outerHTML) || isLogo(outerHTML) {
 			continue
 		}
 
@@ -75,4 +75,8 @@ func isBadge(html string) bool {
 func isIcon(html string) bool {
 	return strings.Contains(html, "emoji") ||
 		strings.Contains(html, "icon")
+}
+
+func isLogo(html string) bool {
+	return strings.Contains(html, "logo")
 }

@@ -19,6 +19,11 @@ func Test_screenshotFromHTML(t *testing.T) {
 			"",
 		},
 		{
+			"Only logo",
+			`<img src="images/some-logo.png">`,
+			"",
+		},
+		{
 			"Only badges and icons",
 			`<img src="images/badge.jpg"><img src="images/icon.jpg">`,
 			"",
