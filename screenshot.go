@@ -69,7 +69,10 @@ func isBadge(html string) bool {
 		strings.Contains(html, "coveralls.io") ||
 		strings.Contains(html, "snyk.io") ||
 		strings.Contains(html, "david-dm.org") ||
-		strings.Contains(html, "packagequality.com")
+		strings.Contains(html, "packagequality.com") ||
+		strings.Contains(html, "circleci.com") ||
+		strings.Contains(html, "play-codesandbox") ||
+		strings.Contains(html, "herokucdn.com/deploy/button")
 }
 
 func isIcon(html string) bool {
